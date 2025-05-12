@@ -1,0 +1,18 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pkl
+
+# Virtual environments
+venv/
+env/
+.mafa/
+.mafa_env/
+
+# Secrets
+.env
+output.wav
+
+# OS files
+.DS_Store
+Thumbs.db
