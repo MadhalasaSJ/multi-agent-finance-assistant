@@ -1,0 +1,10 @@
+streamlit
+openai
+pyttsx3
+whisper
+sounddevice
+sentence-transformers
+faiss-cpu
+python-dotenv
+numpy
+scipy
