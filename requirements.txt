@@ -2,7 +2,7 @@ torch==2.7.0
 streamlit
 openai
 pyttsx3
-whisper
+git+https://github.com/openai/whisper.git
 sounddevice
 sentence-transformers
 faiss-cpu
