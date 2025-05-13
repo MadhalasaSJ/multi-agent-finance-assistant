@@ -74,4 +74,7 @@ To deploy this app on [Streamlit Cloud](https://streamlit.io/cloud):
 | `RetrieverAgent` | Stores and retrieves context using FAISS + embeddings     |
 | `LanguageAgent`  | Uses OpenAI GPT to synthesize a final summary             |
 | `VoiceAgent`     | Handles voice input (Whisper) and output (pyttsx3 TTS)    |
+<<<<<<< HEAD
 
+=======
+>>>>>>> f44bf72 (🧹 Removed pycache and added .gitignore)
