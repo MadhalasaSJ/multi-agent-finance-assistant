@@ -9,7 +9,7 @@ from orchestrator.orchestrator import Orchestrator
 class VoiceAgent:
     def __init__(self):
         print("🔈 Initializing Whisper STT and optional TTS...")
-        self.model = whisper.load_model("small")
+        self.model = whisper.load_model("tiny")
         self.enable_tts = platform.system() in ["Windows", "Darwin"]
         if self.enable_tts:
             self.engine = pyttsx3.init()
