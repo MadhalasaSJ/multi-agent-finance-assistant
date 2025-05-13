@@ -1,3 +1,6 @@
+models/
+*.pt
+*.wav
 # Python cache
 __pycache__/
 *.pyc
