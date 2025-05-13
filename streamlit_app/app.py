@@ -28,36 +28,39 @@ query = None
 
 # --- Microphone Input ---
 if use_mic:
-    st.info("🎙️ Click the mic, wait a second, and then speak clearly.")
+    st.info("🎙️ Click the mic, wait a second, then speak clearly for 5–6 seconds.")
 
     audio_bytes = audio_recorder(pause_threshold=3.0)
 
     if audio_bytes:
         st.audio(audio_bytes, format="audio/wav")
         try:
-            # Save bytes and ensure correct audio format
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
-                f.write(audio_bytes)
-                f.flush()
+            # Save raw audio bytes to temp file
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as raw_file:
+                raw_file.write(audio_bytes)
+                raw_file.flush()
+                data, samplerate = sf.read(raw_file.name)
 
-            data, samplerate = sf.read(f.name)
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as corrected_file:
-                sf.write(corrected_file.name, data, samplerate)
-                query = voice_agent.speech_to_text(corrected_file.name)
+            # Save in correct format for Whisper
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as formatted_file:
+                sf.write(formatted_file.name, data, samplerate)
+
+            # Transcribe via VoiceAgent
+            query = voice_agent.speech_to_text(formatted_file.name)
 
             if query.strip():
                 st.success(f"🗣️ You said: `{query}`")
             else:
-                st.warning("😕 Couldn't understand your voice. Try again.")
+                st.warning("😕 Couldn't understand your voice. Please try again.")
         except Exception as e:
             st.error(f"❌ Audio processing failed: {e}")
             query = ""
 
-# --- Text Input ---
+# --- Text Input Fallback ---
 else:
     query = st.text_input("📝 Type your question:")
 
-# --- Handle Query ---
+# --- Run Assistant ---
 if query and st.button("🔍 Run"):
     with st.spinner("Thinking..."):
         response = orchestrator.handle(query)
