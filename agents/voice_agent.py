@@ -1,22 +1,21 @@
-import streamlit as st
+import sys
 import whisper
 import pyttsx3
-import tempfile
-import sys
+import platform
 import os
-
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from orchestrator.orchestrator import Orchestrator
 
 class VoiceAgent:
     def __init__(self):
-        print("🔈 Initializing Whisper STT and pyttsx3 TTS...")
+        print("🔈 Initializing Whisper STT and optional TTS...")
+        self.model = whisper.load_model("small")
+        self.enable_tts = platform.system() in ["Windows", "Darwin"]
+        if self.enable_tts:
+            self.engine = pyttsx3.init()
 
-        # Load Whisper model
-        self.model = whisper.load_model("small", download_root="models")
-
-        # Initialize text-to-speech engine
-        self.engine = pyttsx3.init()
+        # 💡 THIS is where you load the orchestrator
+        self.orchestrator = Orchestrator()
 
     def speech_to_text(self, audio_file):
         print("📝 Transcribing audio...")
@@ -25,31 +24,30 @@ class VoiceAgent:
             print("🧾 Whisper result:", result)
             return result.get("text", "").strip()
         except Exception as e:
-            print(f"❌ Error during transcription: {e}")
+            print(f"❌ Transcription error: {e}")
             return ""
 
-    def text_to_speech(self, text):
-        print("🗣️ Speaking: " + text)
-        self.engine.say(text)
-        self.engine.runAndWait()
+    def text_to_speech(self, text, out_file="output.wav"):
+        if not self.enable_tts:
+            print("⚠️ TTS disabled on this platform")
+            return
 
-if __name__ == "__main__":
-    voice_agent = VoiceAgent()
-    orchestrator = Orchestrator()
+        print("🗣️ Saving speech to file...")
+        try:
+            self.engine.save_to_file(text, out_file)
+            self.engine.runAndWait()
+        except RuntimeError:
+            print("⚠️ pyttsx3 event loop already running — skipping voice playback.")
 
-    # Upload audio file
-    audio_file = st.file_uploader("Upload Audio", type=["wav", "mp3"])
-    if audio_file is not None:
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
-            f.write(audio_file.read())
-            f.close()
-            
-            # Transcribe the uploaded audio file
-            query = voice_agent.speech_to_text(f.name)
-            print("👂 You said:", query)
+    def handle_audio_query(self, audio_file):
+        """👂 Record → 🧠 Understand → 💬 Speak"""
+        query = self.speech_to_text(audio_file)
+        print("👂 You said:", query)
 
-            if query.strip():
-                response = orchestrator.handle(query)
-                voice_agent.text_to_speech(response)
-            else:
-                print("⚠️ No speech detected. Try again.")
+        if query.strip():
+            response = self.orchestrator.handle(query)
+            self.text_to_speech(response)
+            return query, response
+        else:
+            return "", "⚠️ No valid speech detected."
+

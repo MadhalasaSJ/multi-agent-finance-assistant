@@ -3,10 +3,9 @@ from agents.scraper_agent import ScraperAgent
 from agents.retriever_agent import RetrieverAgent
 from agents.language_agent import LanguageAgent
 
-
 class Orchestrator:
     def __init__(self):
-        # Track supported companies and their ticker symbols
+        # Mapping keywords to stock symbols
         self.supported_companies = {
             "tsmc": "TSM",
             "tsm": "TSM",
@@ -16,64 +15,49 @@ class Orchestrator:
             "baba": "BABA"
         }
 
-        self.default_company = "TSM"
         self.api_agent = APIAgent(list(set(self.supported_companies.values())))
         self.scraper_agent = ScraperAgent()
         self.retriever_agent = RetrieverAgent()
         self.language_agent = LanguageAgent()
 
-    def extract_company_symbol(self, query: str) -> str:
-        """Basic keyword matching to select the company mentioned in the query."""
-        query_lower = query.lower()
+    def extract_company_symbol(self, query: str) -> str | None:
+        query = query.lower()
         for keyword, symbol in self.supported_companies.items():
-            if keyword in query_lower:
+            if keyword in query:
                 return symbol
-        return None  # No specific company matched
+        return None
 
     def is_sector_summary(self, query: str) -> bool:
-        """Detects if the query is about general tech/market movement."""
-        keywords = ["asia tech", "tech sector", "stock movement", "market summary", "tech movement"]
-        return any(kw in query.lower() for kw in keywords)
+        keywords = [
+            "tech sector", "asia tech", "asian market", "market movement", 
+            "stock summary", "tech stocks", "summary of tech", "market brief"
+        ]
+        return any(k in query.lower() for k in keywords)
 
     def handle(self, query: str) -> str:
         print(f"🔍 Received query: {query}")
 
-        # Step 1: Determine if this is a sector-wide summary
+        # General tech sector query
         if self.is_sector_summary(query):
-            print("🧠 Detected sector-wide query")
-
-            # Get market data for all tracked companies
+            print("🧠 Handling sector-wide summary...")
             market_data = self.api_agent.get_market_data()
-            print(f"📈 Market Data: {market_data}")
+            context = ["Summary of Asia tech sector performance."]
+            return self.language_agent.synthesize_brief(context, market_data)
 
-            # Create a dummy context for LLM
-            context = ["Summary of Asia tech stock movement."]
-            response = self.language_agent.synthesize_brief(context, market_data)
-            print(f"🧠 Final Response: {response}")
-            return response
+        # Specific company query
+        selected_symbol = self.extract_company_symbol(query)
+        if not selected_symbol:
+            print("⚠️ No specific company detected — defaulting to TSM.")
+            selected_symbol = "TSM"
 
-        # Step 2: Otherwise detect a specific company
-        selected_company = self.extract_company_symbol(query)
-        if not selected_company:
-            print("⚠️ No specific company found in query — defaulting to TSM.")
-            selected_company = self.default_company
+        print(f"🏷️ Selected company: {selected_symbol}")
 
-        print(f"🏷️ Detected company: {selected_company}")
-
-        # Step 3: Scrape earnings for the company
-        earnings_summary = self.scraper_agent.get_earnings_summary(selected_company)
-        print(f"📄 Earnings Summary for {selected_company}: {earnings_summary}")
-
-        # Step 4: Get market data
+        earnings_summary = self.scraper_agent.get_earnings_summary(selected_symbol)
         market_data = self.api_agent.get_market_data()
-        print(f"📈 Market Data: {market_data}")
 
-        # Step 5: Use retriever to add context and respond
         self.retriever_agent.add_documents([earnings_summary])
         context = self.retriever_agent.retrieve(query)
-        print(f"📚 Retrieved Context: {context}")
 
-        # Step 6: Final language synthesis
         response = self.language_agent.synthesize_brief(context, market_data)
-        print(f"🧠 Final Response: {response}")
+        print(f"🧠 Final response: {response}")
         return response

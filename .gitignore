@@ -1,6 +1,3 @@
-models/
-*.pt
-*.wav
 # Python cache
 __pycache__/
 *.pyc
@@ -14,10 +11,24 @@ env/
 
 # Secrets
 .env
+
+# Audio files
 output.wav
+*.wav
+
+# Models
+models/
+models/small.pt
+*.pt
 
 # OS files
 .DS_Store
 Thumbs.db
-#models
-models/small.pt
+
+# Log files
+*.log
+
+# Temporary files
+*.swp
+*.bak
+*.tmp

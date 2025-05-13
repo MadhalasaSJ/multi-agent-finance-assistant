@@ -4,8 +4,9 @@ import streamlit as st
 import tempfile
 import numpy as np
 import soundfile as sf
+import platform
 
-# Add parent directory to path for importing agents
+# Add parent directory to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from orchestrator.orchestrator import Orchestrator
@@ -25,39 +26,38 @@ voice_agent = VoiceAgent()
 use_mic = st.toggle("🎤 Use Microphone", value=False)
 query = None
 
-# --- Microphone Input Handling ---
+# --- Microphone Input ---
 if use_mic:
-    st.info("🎙️ Click the mic, wait 1 sec, then speak clearly for 5–6 seconds.")
+    st.info("🎙️ Click the mic, wait a second, and then speak clearly.")
+
     audio_bytes = audio_recorder(pause_threshold=3.0)
 
     if audio_bytes:
         st.audio(audio_bytes, format="audio/wav")
-
         try:
-            # Save incoming .wav bytes to file and reprocess to correct format
+            # Save bytes and ensure correct audio format
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
                 f.write(audio_bytes)
                 f.flush()
 
-            # Read and re-save the audio properly
             data, samplerate = sf.read(f.name)
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f2:
-                sf.write(f2.name, data, samplerate)
-                query = voice_agent.speech_to_text(f2.name)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as corrected_file:
+                sf.write(corrected_file.name, data, samplerate)
+                query = voice_agent.speech_to_text(corrected_file.name)
 
             if query.strip():
                 st.success(f"🗣️ You said: `{query}`")
             else:
-                st.warning("😕 Couldn't understand your voice. Please try again.")
+                st.warning("😕 Couldn't understand your voice. Try again.")
         except Exception as e:
             st.error(f"❌ Audio processing failed: {e}")
             query = ""
 
-# --- Text Input Fallback ---
+# --- Text Input ---
 else:
     query = st.text_input("📝 Type your question:")
 
-# --- Run Assistant ---
+# --- Handle Query ---
 if query and st.button("🔍 Run"):
     with st.spinner("Thinking..."):
         response = orchestrator.handle(query)
@@ -66,6 +66,6 @@ if query and st.button("🔍 Run"):
     st.markdown("### 🧠 Market Brief:")
     st.markdown(response)
 
-    # Generate & stream audio response
     voice_agent.text_to_speech(response)
-    st.audio("output.wav", format="audio/wav")
+    if os.path.exists("output.wav"):
+        st.audio("output.wav", format="audio/wav")
