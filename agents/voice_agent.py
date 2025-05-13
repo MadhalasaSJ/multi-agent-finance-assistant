@@ -1,20 +1,27 @@
 import sys
 import whisper
-import pyttsx3
 import platform
 import os
+
+# Add root path to import orchestrator
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from orchestrator.orchestrator import Orchestrator
 
 class VoiceAgent:
     def __init__(self):
         print("🔈 Initializing Whisper STT and optional TTS...")
+
+        # Use a lightweight model for Streamlit Cloud
         self.model = whisper.load_model("tiny")
+
+        # TTS enabled only for local (Windows/macOS)
         self.enable_tts = platform.system() in ["Windows", "Darwin"]
         if self.enable_tts:
+            import pyttsx3
             self.engine = pyttsx3.init()
 
-        # 💡 THIS is where you load the orchestrator
+        # Load orchestrator
         self.orchestrator = Orchestrator()
 
     def speech_to_text(self, audio_file):
@@ -29,7 +36,7 @@ class VoiceAgent:
 
     def text_to_speech(self, text, out_file="output.wav"):
         if not self.enable_tts:
-            print("⚠️ TTS disabled on this platform")
+            print("🔇 TTS disabled in Streamlit Cloud")
             return
 
         print("🗣️ Saving speech to file...")
@@ -37,7 +44,7 @@ class VoiceAgent:
             self.engine.save_to_file(text, out_file)
             self.engine.runAndWait()
         except RuntimeError:
-            print("⚠️ pyttsx3 event loop already running — skipping voice playback.")
+            print("⚠️ pyttsx3 event loop conflict — skipping playback.")
 
     def handle_audio_query(self, audio_file):
         """👂 Record → 🧠 Understand → 💬 Speak"""
@@ -50,4 +57,3 @@ class VoiceAgent:
             return query, response
         else:
             return "", "⚠️ No valid speech detected."
-
