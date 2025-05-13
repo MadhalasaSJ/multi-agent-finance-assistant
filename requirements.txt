@@ -11,3 +11,4 @@ numpy
 scipy
 audio_recorder_streamlit
 soundfile
+yfinance
