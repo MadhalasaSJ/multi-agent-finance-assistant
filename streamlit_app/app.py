@@ -43,7 +43,7 @@ if use_mic:
 
             # Save in correct format for Whisper
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as formatted_file:
-                sf.write(formatted_file.name, data, samplerate)
+                sf.write(formatted_file.name, data, 16000)
 
             # Transcribe via VoiceAgent
             query = voice_agent.speech_to_text(formatted_file.name)
