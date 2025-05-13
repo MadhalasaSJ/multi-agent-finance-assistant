@@ -20,10 +20,15 @@ This project is a multi-agent system that uses real-time market data, earnings s
 [Voice Input]
 ↓
 [Whisper STT] ─┐
+
 ├→ [ScraperAgent] → Earnings
+
 ├→ [APIAgent] → Market Data
+
 ├→ [RetrieverAgent] → FAISS vector search
+
 └→ [LanguageAgent] → GPT synthesis
+
 ↓
 [Text + TTS Output]
 
