@@ -1,8 +1,6 @@
+import streamlit as st
 import whisper
 import pyttsx3
-import sounddevice as sd
-import numpy as np
-import scipy.io.wavfile as wavfile
 import tempfile
 import sys
 import os
@@ -14,25 +12,11 @@ class VoiceAgent:
     def __init__(self):
         print("🔈 Initializing Whisper STT and pyttsx3 TTS...")
 
-        # Fix: Avoid calling .to() to prevent meta tensor error in PyTorch > 2.3
+        # Load Whisper model
         self.model = whisper.load_model("small", download_root="models")
 
+        # Initialize text-to-speech engine
         self.engine = pyttsx3.init()
-
-    def record_audio(self, duration=8, samplerate=16000):
-        print(f"🎤 Recording for {duration} seconds...")
-        try:
-            recording = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1)
-            sd.wait()
-        except Exception as e:
-            print(f"❌ Error during audio recording: {e}")
-            return None
-
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
-            audio_data = np.int16(recording * 32767)
-            wavfile.write(f.name, samplerate, audio_data)
-            print(f"✅ Audio saved at: {f.name}")
-            return f.name
 
     def speech_to_text(self, audio_file):
         print("📝 Transcribing audio...")
@@ -53,13 +37,19 @@ if __name__ == "__main__":
     voice_agent = VoiceAgent()
     orchestrator = Orchestrator()
 
-    audio_path = voice_agent.record_audio(duration=8)
-    if audio_path:
-        query = voice_agent.speech_to_text(audio_path)
-        print("👂 You said:", query)
+    # Upload audio file
+    audio_file = st.file_uploader("Upload Audio", type=["wav", "mp3"])
+    if audio_file is not None:
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+            f.write(audio_file.read())
+            f.close()
+            
+            # Transcribe the uploaded audio file
+            query = voice_agent.speech_to_text(f.name)
+            print("👂 You said:", query)
 
-        if query.strip():
-            response = orchestrator.handle(query)
-            voice_agent.text_to_speech(response)
-        else:
-            print("⚠️ No speech detected. Try again in a quieter environment.")
+            if query.strip():
+                response = orchestrator.handle(query)
+                voice_agent.text_to_speech(response)
+            else:
+                print("⚠️ No speech detected. Try again.")
