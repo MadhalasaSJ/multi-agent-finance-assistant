@@ -9,6 +9,6 @@ faiss-cpu
 python-dotenv
 numpy
 scipy
-audio_recorder_streamlit
 soundfile
 yfinance
+audio_recorder_streamlit
