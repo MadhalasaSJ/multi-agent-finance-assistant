@@ -1,71 +1,201 @@
 # 🧠 AI Tool Usage Log
 
-This document outlines how AI tools were used in the Multi-Agent Finance Assistant.
+This document outlines how AI and machine learning tools are used in the Multi-Agent Finance Assistant.
 
 ---
 
-## 1. 🔍 Prompt Used for OpenAI GPT
+## 1. 🤖 Local LLM Usage
+
+**Model:** `gemma3:1b`  
+**Runtime:** Ollama
+
+Gemma 3 1B is used for translating retrieved financial news into the selected response language. The supported languages are English, Hindi, and German.
+
+The model is instructed to:
+- Translate financial news without adding new facts.
+- Preserve company names, ticker symbols, dates, and financial figures.
+- Return output in the selected language.
+- Avoid introducing unsupported financial claims.
+
+### Prompt Used
 
 ```text
-You are a market assistant.
-Summarize today's Asia tech risk and highlight earnings.
+Translate the financial news below into the selected language.
 
-Market data:
-{market_data}
+Requirements:
+- Translate the complete text into the target language.
+- Preserve company names, ticker symbols, dates, numbers,
+  percentages, currencies, and financial terminology.
+- Do not add explanations, predictions, or new information.
+- Do not summarize or omit any claims.
+- Return only the translation.
 
-Documents:
-{retrieved_texts}
+Source text:
+{document}
+```
 
-Respond concisely and factually.
-
-## 2. 🔧 LLM Configuration
-
-- **Model**: `gpt-3.5-turbo`
-- **Temperature**: `0.5`
-- **Tool**: `openai.ChatCompletion.create` (via OpenAI Python SDK)
-
----
-
-## 3. 🔄 Vector Retrieval
-
-- **Embeddings**: `sentence-transformers` using `all-MiniLM-L6-v2`
-- **Indexing**: `faiss.IndexFlatL2`
-- **Used by**: `RetrieverAgent` to store and retrieve context for the LLM
+The application also validates translated numerical values before including translated news in the final response.
 
 ---
 
-## 4. 📈 Data Ingestion Tools
+## 2. 🔎 Vector Retrieval
 
-- `yfinance`: for fetching live market data for tech stocks in Asia  
-- `Alpha Vantage API`: for quarterly earnings data (EPS and surprises)
+- **Embedding Model:** `all-MiniLM-L6-v2`
+- **Embedding Library:** Sentence Transformers
+- **Vector Index:** `faiss.IndexFlatL2`
+- **Agent:** `RetrieverAgent`
+
+The retriever converts financial documents into embeddings and searches the indexed documents for information relevant to a user query.
+
+FAISS retrieves information from the indexed corpus; it does not independently fetch live financial news or stock prices.
 
 ---
 
-## 5. 🎤 Voice Handling
+## 3. 📈 Financial Data Ingestion
 
-- `whisper`: for speech-to-text transcription from mic input  
-- `pyttsx3`: for offline text-to-speech output  
-- **Controlled by**: `VoiceAgent`
+### Yahoo Finance
+
+- **Library:** `yfinance`
+- **Agent:** `APIAgent`
+
+Retrieves historical closing prices for supported stock tickers. Python calculates the percentage change between the previous and current closing prices:
+
+```python
+change = ((current - previous) / previous) * 100
+```
+
+### Earnings Information
+
+- **Agent:** `ScraperAgent`
+
+Retrieves earnings-related information for use in the financial briefing. The available information depends on the scraper's data source and retrieval results.
+
+---
+
+## 4. 🎤 Voice Processing
+
+### Speech-to-Text
+
+- **Tool:** Whisper
+- **Agent:** `VoiceAgent`
+
+Transcribes spoken queries and detects the spoken language to support voice-based interaction.
+
+### Text-to-Speech
+
+- **Tool:** Piper TTS
+- **Voice Models:** English, Hindi, and German
+
+Converts generated financial responses into spoken audio using language-specific voice models.
+
+### Audio Processing
+
+- FFmpeg
+- SoundFile
+- SciPy
+
+These tools support audio processing and preparation for speech recognition and playback.
+
+---
+
+## 5. 🌐 Multilingual Response Generation
+
+The application supports:
+
+- 🇬🇧 English
+- 🇮🇳 Hindi
+- 🇩🇪 German
+
+The `LanguageAgent` formats stock movements using deterministic Python calculations and language-specific templates. Retrieved financial news can be translated using Gemma 3 1B.
+
+Numerical validation helps detect translation errors, although it cannot guarantee complete factual accuracy or grammatical correctness.
 
 ---
 
 ## 6. 👥 Agent Roles and Orchestration
 
-| Agent            | Role                                                        |
-|------------------|-------------------------------------------------------------|
-| `ScraperAgent`   | Fetches earnings data from Alpha Vantage                    |
-| `APIAgent`       | Retrieves live market data                                  |
-| `RetrieverAgent` | Indexes earnings text and retrieves relevant summaries      |
-| `LanguageAgent`  | Synthesizes final brief using OpenAI GPT                    |
-| `VoiceAgent`     | Handles voice input (Whisper) and voice output (TTS)        |
+| Agent | Responsibility |
+|---|---|
+| `APIAgent` | Retrieves stock price data through Yahoo Finance. |
+| `ScraperAgent` | Retrieves earnings-related information. |
+| `RetrieverAgent` | Generates document embeddings and retrieves relevant context using FAISS. |
+| `LanguageAgent` | Formats market briefs, calculates stock movements, and translates relevant news. |
+| `VoiceAgent` | Handles speech transcription and spoken response generation. |
+| `Orchestrator` | Coordinates agents and routes user queries through the application pipeline. |
 
-➡️ All agents are orchestrated via the `Orchestrator` class in a unified pipeline.
+All agents are coordinated through the `Orchestrator` class.
 
 ---
 
-## ⏱️ Performance Observations
+## 7. 🔄 Processing Pipeline
 
-- API data fetch: ~1 second each  
-- OpenAI GPT response time: ~2–3 seconds  
-- Whisper transcription: ~2 seconds per 6s clip  
-- Full voice-to-voice pipeline: ~5–6 seconds total
+```text
+User Text or Voice Query
+          |
+          v
+       Orchestrator
+          |
+     +----+-----+
+     |          |
+     v          v
+  APIAgent   ScraperAgent
+     |          |
+     v          v
+ Stock Data  Earnings Documents
+     |          |
+     |      RetrieverAgent
+     |          |
+     +----+-----+
+          |
+          v
+     LanguageAgent
+          |
+   Python Calculations
+          |
+   Gemma 3 1B Translation
+          |
+   English / Hindi / German
+          |
+     Text Response
+          |
+       Piper TTS
+          |
+    Spoken Response
+```
+
+---
+
+## 8. ⏱️ Performance Observations
+
+Actual latency depends on the hardware, model loading, network conditions, data availability, and audio duration.
+
+The current implementation uses a local LLM and local speech-processing components. No fixed performance benchmarks are documented here because timings have not been systematically measured across representative queries.
+
+---
+
+## 9. ⚠️ Limitations
+
+- Stock prices depend on the availability and freshness of Yahoo Finance data.
+- FAISS can retrieve only documents that have been indexed.
+- Retrieved documents may be irrelevant or outdated if retrieval is not sufficiently filtered.
+- Gemma 3 1B may produce inaccurate translations despite prompt instructions.
+- Numerical validation does not guarantee that every translated statement preserves its meaning.
+- Speech recognition and synthesis quality depend on the selected language model and voice configuration.
+- The application is intended for informational and educational purposes, not personalized financial advice.
+
+---
+
+## 🔗 Technologies Used
+
+- [Ollama](https://ollama.com/)
+- [Gemma](https://ai.google.dev/gemma)
+- [FAISS](https://github.com/facebookresearch/faiss)
+- [Sentence Transformers](https://www.sbert.net/)
+- [Whisper](https://github.com/openai/whisper)
+- [Piper TTS](https://github.com/rhasspy/piper)
+- [Streamlit](https://streamlit.io/)
+- [yfinance](https://github.com/ranaroussi/yfinance)
+
+---
+
+**Project:** [Multi-Agent Finance Assistant](https://github.com/MadhalasaSJ/multi-agent-finance-assistant)
